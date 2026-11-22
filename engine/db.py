@@ -32,9 +32,16 @@ def init_db():
         reference_id TEXT,
         raw_text TEXT,
         source TEXT DEFAULT 'MANUAL',
+        bank TEXT DEFAULT 'Other',
         created_at TEXT NOT NULL
     );
     """)
+
+    # Ensure bank column exists if table existed previously
+    cursor.execute("PRAGMA table_info(transactions)")
+    cols = [c[1] for c in cursor.fetchall()]
+    if "bank" not in cols:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN bank TEXT DEFAULT 'Other'")
 
     # Settings table
     cursor.execute("""
@@ -55,7 +62,7 @@ def init_db():
     );
     """)
 
-    # Default settings if not present
+    # Default settings
     defaults = {
         "monthly_budget": "35000",
         "currency_symbol": "₹",
@@ -73,7 +80,6 @@ def init_db():
     conn.close()
 
 def generate_tx_hash(amount: float, tx_type: str, date: str, merchant: str, ref: Optional[str] = None) -> str:
-    """Generate unique hash to prevent duplicate entries from multiple SMS or email alerts"""
     clean_date = date[:10] if date else datetime.now().strftime("%Y-%m-%d")
     raw = f"{amount:.2f}_{tx_type.upper()}_{clean_date}_{merchant.lower().strip()}_{ref or ''}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -89,7 +95,8 @@ def insert_transaction(
     balance_after: Optional[float] = None,
     reference_id: Optional[str] = None,
     raw_text: Optional[str] = None,
-    source: str = "MANUAL"
+    source: str = "MANUAL",
+    bank: str = "Other"
 ) -> Optional[int]:
     tx_hash = generate_tx_hash(amount, tx_type, date, merchant, reference_id)
     conn = get_db()
@@ -98,8 +105,8 @@ def insert_transaction(
         cursor.execute("""
         INSERT INTO transactions (
             tx_hash, date, amount, type, mode, category, merchant,
-            account_ref, balance_after, reference_id, raw_text, source, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            account_ref, balance_after, reference_id, raw_text, source, bank, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             tx_hash,
             date or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -113,22 +120,37 @@ def insert_transaction(
             reference_id,
             raw_text,
             source,
+            bank,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
         conn.commit()
-        tx_id = cursor.lastrowid
-        return tx_id
+        return cursor.lastrowid
     except sqlite3.IntegrityError:
-        # Duplicate transaction, ignored
         return None
     finally:
         conn.close()
 
-def get_transactions(limit: int = 100, offset: int = 0, category: Optional[str] = None, tx_type: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_transactions(
+    limit: int = 150,
+    offset: int = 0,
+    category: Optional[str] = None,
+    tx_type: Optional[str] = None,
+    search: Optional[str] = None,
+    month: Optional[str] = None,
+    bank: Optional[str] = None
+) -> List[Dict[str, Any]]:
     conn = get_db()
     cursor = conn.cursor()
     query = "SELECT * FROM transactions WHERE 1=1"
     params = []
+
+    if month and month != "All":
+        query += " AND date LIKE ?"
+        params.append(f"{month}%")
+
+    if bank and bank != "All":
+        query += " AND bank = ?"
+        params.append(bank)
 
     if category and category != "All":
         query += " AND category = ?"
@@ -139,9 +161,9 @@ def get_transactions(limit: int = 100, offset: int = 0, category: Optional[str] 
         params.append(tx_type.upper())
 
     if search:
-        query += " AND (merchant LIKE ? OR raw_text LIKE ? OR reference_id LIKE ?)"
+        query += " AND (merchant LIKE ? OR raw_text LIKE ? OR reference_id LIKE ? OR bank LIKE ?)"
         wildcard = f"%{search}%"
-        params.extend([wildcard, wildcard, wildcard])
+        params.extend([wildcard, wildcard, wildcard, wildcard])
 
     query += " ORDER BY date DESC, id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
@@ -169,82 +191,135 @@ def update_transaction_category(tx_id: int, category: str) -> bool:
     conn.close()
     return updated
 
-def get_stats() -> Dict[str, Any]:
+def get_monthly_analysis(target_month: Optional[str] = None) -> Dict[str, Any]:
     conn = get_db()
     cursor = conn.cursor()
 
-    # Current month string
-    current_month = datetime.now().strftime("%Y-%m")
-    today = datetime.now().strftime("%Y-%m-%d")
+    # If no month provided, use current YYYY-MM
+    if not target_month or target_month == "current":
+        target_month = datetime.now().strftime("%Y-%m")
 
-    # Monthly Expenses
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'EXPENSE' AND date LIKE ?", (f"{current_month}%",))
-    monthly_expense = cursor.fetchone()[0]
+    month_pattern = f"{target_month}%"
 
-    # Monthly Inflow / Income
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'INCOME' AND date LIKE ?", (f"{current_month}%",))
-    monthly_income = cursor.fetchone()[0]
+    # Distinct months in DB
+    cursor.execute("SELECT DISTINCT substr(date, 1, 7) as m FROM transactions ORDER BY m DESC")
+    available_months = [r[0] for r in cursor.fetchall() if r[0]]
+    if target_month not in available_months:
+        available_months.insert(0, target_month)
 
-    # Today's Expense
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'EXPENSE' AND date LIKE ?", (f"{today}%",))
-    today_expense = cursor.fetchone()[0]
+    # 1. Salary Inflow (Standard Chartered Bank or Salary Category)
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount), 0) FROM transactions 
+    WHERE (bank = 'Standard Chartered' OR category = 'Salary & Income') 
+      AND type = 'INCOME' 
+      AND date LIKE ?
+    """, (month_pattern,))
+    salary_inflow = cursor.fetchone()[0]
 
-    # Monthly UPI Spend
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'EXPENSE' AND mode = 'UPI' AND date LIKE ?", (f"{current_month}%",))
+    # Total Income (all sources)
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'INCOME' AND date LIKE ?", (month_pattern,))
+    total_income = cursor.fetchone()[0]
+
+    # 2. CRED Loaded / Put into CRED
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount), 0) FROM transactions 
+    WHERE (bank = 'CRED' OR category = 'CRED & Wallet' OR merchant LIKE '%CRED%') 
+      AND type = 'EXPENSE' 
+      AND date LIKE ?
+    """, (month_pattern,))
+    cred_loaded = cursor.fetchone()[0]
+
+    # 3. Self-Transfers (Moving between SC, HDFC, ICICI, IDFC)
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount), 0) FROM transactions 
+    WHERE category = 'Self Transfer' 
+      AND date LIKE ?
+    """, (month_pattern,))
+    self_transfers = cursor.fetchone()[0]
+
+    # 4. Real Expenses (Excludes Self-Transfers and CRED Loads to prevent double counting!)
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount), 0) FROM transactions 
+    WHERE type = 'EXPENSE' 
+      AND category NOT IN ('Self Transfer', 'CRED & Wallet')
+      AND date LIKE ?
+    """, (month_pattern,))
+    real_expenses = cursor.fetchone()[0]
+
+    # 5. Total Gross Debits
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'EXPENSE' AND date LIKE ?", (month_pattern,))
+    gross_debits = cursor.fetchone()[0]
+
+    # 6. UPI Outflow this month
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount), 0) FROM transactions 
+    WHERE type = 'EXPENSE' AND mode = 'UPI' AND date LIKE ?
+    """, (month_pattern,))
     monthly_upi = cursor.fetchone()[0]
 
-    # Category Breakdown for this month
+    # 7. Breakdown by Bank for this month
+    banks = ["Standard Chartered", "HDFC", "ICICI", "IDFC FIRST", "CRED", "Other"]
+    bank_stats = []
+    for b in banks:
+        # Expenses
+        cursor.execute("SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM transactions WHERE bank = ? AND type = 'EXPENSE' AND date LIKE ?", (b, month_pattern))
+        exp_row = cursor.fetchone()
+        b_exp = exp_row[0]
+        b_count = exp_row[1]
+
+        # Inflow
+        cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE bank = ? AND type = 'INCOME' AND date LIKE ?", (b, month_pattern))
+        b_inc = cursor.fetchone()[0]
+
+        bank_stats.append({
+            "bank": b,
+            "spent": b_exp,
+            "inflow": b_inc,
+            "tx_count": b_count
+        })
+
+    # 8. Category Breakdown for Real Expenses this month
     cursor.execute("""
     SELECT category, COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
     FROM transactions 
-    WHERE type = 'EXPENSE' AND date LIKE ?
+    WHERE type = 'EXPENSE' 
+      AND category NOT IN ('Self Transfer')
+      AND date LIKE ?
     GROUP BY category 
     ORDER BY total DESC
-    """, (f"{current_month}%",))
+    """, (month_pattern,))
     categories = [dict(r) for r in cursor.fetchall()]
 
-    # Last 14 days daily expenses
-    cursor.execute("""
-    SELECT substr(date, 1, 10) as day, COALESCE(SUM(amount), 0) as total
-    FROM transactions
-    WHERE type = 'EXPENSE'
-    GROUP BY day
-    ORDER BY day DESC
-    LIMIT 14
-    """)
-    daily_trend = [dict(r) for r in cursor.fetchall()]
-    daily_trend.reverse()
-
-    # Total transaction count
-    cursor.execute("SELECT COUNT(*) FROM transactions")
-    total_tx_count = cursor.fetchone()[0]
-
-    # Latest balance from transactions if available
-    cursor.execute("SELECT balance_after FROM transactions WHERE balance_after IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1")
-    latest_bal_row = cursor.fetchone()
-    latest_balance = latest_bal_row[0] if latest_bal_row else None
-
-    # Budget
+    # 9. Budget
     cursor.execute("SELECT value FROM settings WHERE key = 'monthly_budget'")
     budget_row = cursor.fetchone()
     monthly_budget = float(budget_row[0]) if budget_row and budget_row[0] else 35000.0
 
     conn.close()
 
+    net_surplus = total_income - real_expenses
+
     return {
-        "monthly_expense": monthly_expense,
-        "monthly_income": monthly_income,
-        "net_savings": monthly_income - monthly_expense,
-        "today_expense": today_expense,
+        "month": target_month,
+        "available_months": available_months,
+        "salary_inflow": salary_inflow,
+        "total_income": total_income,
+        "cred_loaded": cred_loaded,
+        "self_transfers": self_transfers,
+        "real_expenses": real_expenses,
+        "gross_debits": gross_debits,
+        "net_surplus": net_surplus,
+        "savings_rate": round((net_surplus / total_income) * 100, 1) if total_income > 0 else 0,
         "monthly_upi": monthly_upi,
         "monthly_budget": monthly_budget,
-        "budget_remaining": max(0.0, monthly_budget - monthly_expense),
-        "budget_percent_used": round((monthly_expense / monthly_budget) * 100, 1) if monthly_budget > 0 else 0,
-        "latest_balance": latest_balance,
-        "total_tx_count": total_tx_count,
-        "categories": categories,
-        "daily_trend": daily_trend
+        "budget_remaining": max(0.0, monthly_budget - real_expenses),
+        "budget_percent_used": round((real_expenses / monthly_budget) * 100, 1) if monthly_budget > 0 else 0,
+        "bank_stats": bank_stats,
+        "categories": categories
     }
+
+def get_stats() -> Dict[str, Any]:
+    return get_monthly_analysis()
 
 def get_settings() -> Dict[str, str]:
     conn = get_db()

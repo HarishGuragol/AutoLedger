@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from engine.db import (
     init_db, get_stats, get_transactions, insert_transaction,
     delete_transaction, update_transaction_category, get_settings,
-    update_setting, get_ingest_logs, log_ingest_event
+    update_setting, get_ingest_logs, log_ingest_event, get_monthly_analysis
 )
 from engine.parser import parse_transaction_text, CATEGORIES
 from engine.sms_reader import scan_sms_messages, check_sms_permission
@@ -78,18 +78,24 @@ class SettingsUpdate(BaseModel):
 # --- API Routes ---
 
 @app.get("/api/stats")
-def api_get_stats():
-    return get_stats()
+def api_get_stats(month: Optional[str] = None):
+    return get_monthly_analysis(month)
+
+@app.get("/api/monthly-analysis")
+def api_get_monthly_analysis(month: Optional[str] = None):
+    return get_monthly_analysis(month)
 
 @app.get("/api/transactions")
 def api_get_transactions(
-    limit: int = 100,
+    limit: int = 150,
     offset: int = 0,
     category: Optional[str] = None,
     type: Optional[str] = None,
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    month: Optional[str] = None,
+    bank: Optional[str] = None
 ):
-    txs = get_transactions(limit=limit, offset=offset, category=category, tx_type=type, search=search)
+    txs = get_transactions(limit=limit, offset=offset, category=category, tx_type=type, search=search, month=month, bank=bank)
     return {"transactions": txs, "count": len(txs)}
 
 @app.post("/api/transactions/parse")
@@ -207,7 +213,8 @@ def api_get_ingest_status():
 
 @app.post("/api/ingest/sms/sync")
 def api_sync_sms():
-    res = scan_sms_messages()
+    from engine.real_sms_ingest import run_local_ingest
+    res = run_local_ingest()
     return res
 
 @app.post("/api/ingest/email/sync")

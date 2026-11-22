@@ -95,52 +95,178 @@
         </div>
       </section>
 
+      <!-- MONTH CONTROLLER -->
+      <section class="month-selector-bar">
+        <div class="month-nav">
+          <button class="btn btn-secondary btn-sm" onclick="changeMonth(-1)">◀ Prev Month</button>
+          <div class="current-month-display">
+            <span class="month-pill-label">ANALYZING MONTH:</span>
+            <select id="select-month" class="month-dropdown" onchange="onMonthSelected(this.value)">
+              <!-- Dynamically populated months -->
+            </select>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="changeMonth(1)">Next Month ▶</button>
+        </div>
+        <div class="local-privacy-pill">
+          <span class="indicator-dot live"></span>
+          <span>100% LOCAL SSD &bull; ZERO CLOUD &bull; PRIVATE</span>
+        </div>
+      </section>
+
+      <!-- 4 BANKS & CRED ECOSYSTEM CARDS -->
+      <section class="bank-ecosystem-grid">
+        <!-- Standard Chartered (Salary) -->
+        <div class="bank-card sc" onclick="filterByBank('Standard Chartered')">
+          <div class="bank-card-header">
+            <span class="bank-tag sc-tag">SALARY VAULT</span>
+            <span class="bank-name">Standard Chartered</span>
+          </div>
+          <div class="bank-card-body">
+            <div class="bank-stat">
+              <span class="stat-title">Salary / Inflow</span>
+              <span class="stat-amt green-text" id="sc-inflow">₹0.00</span>
+            </div>
+            <div class="bank-stat">
+              <span class="stat-title">Disbursed / Debited</span>
+              <span class="stat-amt red-text" id="sc-spent">₹0.00</span>
+            </div>
+          </div>
+          <div class="bank-card-footer">
+            <span id="sc-count">0 txns</span> &bull; <span>Click to view</span>
+          </div>
+        </div>
+
+        <!-- CRED & CRED Wallet -->
+        <div class="bank-card cred" onclick="filterByBank('CRED')">
+          <div class="bank-card-header">
+            <span class="bank-tag cred-tag">CRED & WALLET</span>
+            <span class="bank-name">CRED / Dreamplug</span>
+          </div>
+          <div class="bank-card-body">
+            <div class="bank-stat">
+              <span class="stat-title">Money Loaded / Put In</span>
+              <span class="stat-amt purple-text" id="cred-loaded-val">₹0.00</span>
+            </div>
+            <div class="bank-stat">
+              <span class="stat-title">Wallet Spends</span>
+              <span class="stat-amt red-text" id="cred-spent-val">₹0.00</span>
+            </div>
+          </div>
+          <div class="bank-card-footer">
+            <span id="cred-count">0 txns</span> &bull; <span>Click to view</span>
+          </div>
+        </div>
+
+        <!-- HDFC Bank -->
+        <div class="bank-card hdfc" onclick="filterByBank('HDFC')">
+          <div class="bank-card-header">
+            <span class="bank-tag hdfc-tag">EXPENSE</span>
+            <span class="bank-name">HDFC Bank</span>
+          </div>
+          <div class="bank-card-body">
+            <div class="bank-stat">
+              <span class="stat-title">Card & UPI Outflow</span>
+              <span class="stat-amt red-text" id="hdfc-spent">₹0.00</span>
+            </div>
+            <div class="bank-stat">
+              <span class="stat-title">Inflow</span>
+              <span class="stat-amt green-text" id="hdfc-inflow">₹0.00</span>
+            </div>
+          </div>
+          <div class="bank-card-footer">
+            <span id="hdfc-count">0 txns</span> &bull; <span>Click to view</span>
+          </div>
+        </div>
+
+        <!-- ICICI Bank -->
+        <div class="bank-card icici" onclick="filterByBank('ICICI')">
+          <div class="bank-card-header">
+            <span class="bank-tag icici-tag">EXPENSE</span>
+            <span class="bank-name">ICICI Bank</span>
+          </div>
+          <div class="bank-card-body">
+            <div class="bank-stat">
+              <span class="stat-title">Card & UPI Outflow</span>
+              <span class="stat-amt red-text" id="icici-spent">₹0.00</span>
+            </div>
+            <div class="bank-stat">
+              <span class="stat-title">Inflow</span>
+              <span class="stat-amt green-text" id="icici-inflow">₹0.00</span>
+            </div>
+          </div>
+          <div class="bank-card-footer">
+            <span id="icici-count">0 txns</span> &bull; <span>Click to view</span>
+          </div>
+        </div>
+
+        <!-- IDFC FIRST Bank -->
+        <div class="bank-card idfc" onclick="filterByBank('IDFC FIRST')">
+          <div class="bank-card-header">
+            <span class="bank-tag idfc-tag">SAVINGS & FD</span>
+            <span class="bank-name">IDFC FIRST Bank</span>
+          </div>
+          <div class="bank-card-body">
+            <div class="bank-stat">
+              <span class="stat-title">Interest / Inflow</span>
+              <span class="stat-amt green-text" id="idfc-inflow">₹0.00</span>
+            </div>
+            <div class="bank-stat">
+              <span class="stat-title">Expenses / Outflow</span>
+              <span class="stat-amt red-text" id="idfc-spent">₹0.00</span>
+            </div>
+          </div>
+          <div class="bank-card-footer">
+            <span id="idfc-count">0 txns</span> &bull; <span>Click to view</span>
+          </div>
+        </div>
+      </section>
+
       <!-- METRICS & TELEMETRY -->
       <section class="metrics-grid">
         <div class="metric-card expense">
           <div class="metric-header">
-            <span class="metric-label">MONTHLY EXPENSES</span>
-            <span class="metric-badge red">OUTFLOW</span>
+            <span class="metric-label">REAL MONTHLY SPEND</span>
+            <span class="metric-badge red">TRUE OUTFLOW</span>
           </div>
           <div class="metric-value" id="val-monthly-expense">₹0.00</div>
           <div class="metric-footer">
-            <span id="val-today-expense">Today: ₹0.00</span>
+            <span id="val-cred-note">Includes CRED & Card Spends</span>
           </div>
         </div>
 
         <div class="metric-card income">
           <div class="metric-header">
-            <span class="metric-label">MONTHLY INFLOW</span>
-            <span class="metric-badge green">INCOME</span>
+            <span class="metric-label">SALARY & INCOME</span>
+            <span class="metric-badge green">EARNED</span>
           </div>
           <div class="metric-value" id="val-monthly-income">₹0.00</div>
           <div class="metric-footer">
-            <span id="val-net-savings">Net Savings: ₹0.00</span>
+            <span id="val-net-savings">Net Surplus: ₹0.00</span>
           </div>
         </div>
 
         <div class="metric-card upi">
           <div class="metric-header">
-            <span class="metric-label">UPI SPEND</span>
-            <span class="metric-badge cyan">DIGITAL</span>
+            <span class="metric-label">CRED MONEY FLOW</span>
+            <span class="metric-badge purple">CRED HUB</span>
           </div>
-          <div class="metric-value" id="val-monthly-upi">₹0.00</div>
+          <div class="metric-value" id="val-monthly-cred">₹0.00</div>
           <div class="metric-footer">
-            <span id="val-tx-count">0 Recorded Txns</span>
+            <span id="val-cred-summary">Loaded into CRED Wallet</span>
           </div>
         </div>
 
         <div class="metric-card budget">
           <div class="metric-header">
-            <span class="metric-label">BUDGET TRACKER</span>
-            <span class="metric-badge amber" id="val-budget-pct">0% Used</span>
+            <span class="metric-label">SAVINGS & RETENTION</span>
+            <span class="metric-badge amber" id="val-savings-rate-badge">0% Saved</span>
           </div>
-          <div class="metric-value" id="val-budget-remaining">₹0.00</div>
+          <div class="metric-value" id="val-net-surplus">₹0.00</div>
           <div class="budget-bar-bg">
             <div class="budget-bar-fill" id="budget-bar-fill" style="width: 0%;"></div>
           </div>
           <div class="metric-footer">
-            <span id="val-budget-total">Limit: ₹35,000.00</span>
+            <span id="val-budget-total">Net Retained This Month</span>
           </div>
         </div>
       </section>
@@ -192,12 +318,23 @@
           </div>
 
           <div class="ledger-controls">
-            <input type="text" id="filter-search" class="search-input" placeholder="Search merchant, ref, note..." oninput="debounceFetchTransactions()">
+            <input type="text" id="filter-search" class="search-input" placeholder="Search merchant, ref..." oninput="debounceFetchTransactions()">
+
+            <select id="filter-bank" class="filter-select" onchange="fetchTransactions()">
+              <option value="All">All Institutions</option>
+              <option value="Standard Chartered">Standard Chartered</option>
+              <option value="CRED">CRED / Wallet</option>
+              <option value="HDFC">HDFC Bank</option>
+              <option value="ICICI">ICICI Bank</option>
+              <option value="IDFC FIRST">IDFC FIRST Bank</option>
+            </select>
 
             <select id="filter-type" class="filter-select" onchange="fetchTransactions()">
               <option value="All">All Types</option>
               <option value="EXPENSE">Expenses Only</option>
               <option value="INCOME">Income Only</option>
+              <option value="INVESTMENT">Investments (FD)</option>
+              <option value="TRANSFER">Self Transfers</option>
             </select>
 
             <select id="filter-category" class="filter-select" onchange="fetchTransactions()">
@@ -209,11 +346,13 @@
               <option value="Subscriptions & Tech">Subscriptions & Tech</option>
               <option value="Health & Fitness">Health & Fitness</option>
               <option value="Salary & Income">Salary & Income</option>
-              <option value="Transfers">Transfers</option>
+              <option value="CRED & Wallet">CRED & Wallet</option>
+              <option value="Investments & FD">Investments & FD</option>
+              <option value="Self Transfer">Self Transfer</option>
               <option value="General">General</option>
             </select>
 
-            <button class="btn btn-secondary btn-sm" onclick="seedSampleData()" title="Populate realistic test bank transactions">Seed Samples</button>
+            <button class="btn btn-secondary btn-sm" onclick="syncSMS()" title="Scan latest bank SMS from Messages">Scan Messages</button>
             <button class="btn btn-secondary btn-sm" onclick="refreshAll()" title="Refresh Ledger">⟳</button>
           </div>
         </div>
@@ -223,12 +362,11 @@
             <thead>
               <tr>
                 <th>DATE</th>
-                <th>MERCHANT / COUNTERPARTY</th>
+                <th>BANK / WALLET</th>
+                <th>MERCHANT / NOTE</th>
                 <th>CATEGORY</th>
                 <th>MODE</th>
-                <th>SOURCE</th>
                 <th>AMOUNT</th>
-                <th>REF / ACCOUNT</th>
                 <th>ACTION</th>
               </tr>
             </thead>
