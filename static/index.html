@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoLedger // Autonomous Bank & UPI Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">₹</div>
+        <div class="logo-text">
+          <h1>AUTO<span>LEDGER</span></h1>
+          <p class="tagline"><span class="pulse-dot"></span> AUTONOMOUS UPI & SMS INGESTION SYSTEM</p>
+        </div>
+      </div>
+
+      <!-- Ingestion Status Bar -->
+      <div class="ingest-pills">
+        <div class="status-pill" id="pill-sms" onclick="openModal('modal-setup', 'tab-sms')">
+          <span class="indicator-dot warn"></span>
+          <span class="pill-label">SMS / iMessage:</span>
+          <span class="pill-val" id="val-sms-status">Checking...</span>
+        </div>
+
+        <div class="status-pill" id="pill-email" onclick="openModal('modal-setup', 'tab-email')">
+          <span class="indicator-dot off"></span>
+          <span class="pill-label">Email IMAP:</span>
+          <span class="pill-val" id="val-email-status">Setup Needed</span>
+        </div>
+
+        <div class="status-pill active" id="pill-webhook" onclick="openModal('modal-setup', 'tab-webhook')">
+          <span class="indicator-dot live"></span>
+          <span class="pill-label">Webhook API:</span>
+          <span class="pill-val">:5050 Active</span>
+        </div>
+
+        <button class="btn btn-secondary btn-icon" onclick="openModal('modal-setup')" title="Data Ingestion Sources">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Ingest Feeds
+        </button>
+
+        <button class="btn btn-secondary btn-icon" onclick="openModal('modal-settings')" title="Budget & Config">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+      <!-- SMART INGESTION DROP ZONE -->
+      <section class="smart-ingest-card">
+        <div class="card-glow"></div>
+        <div class="ingest-header">
+          <div class="ingest-title">
+            <span class="badge-tag">AI PARSER READY</span>
+            <h3>Smart Message & Alert Parser</h3>
+            <p>Paste any bank SMS, UPI debit alert, withdrawal text, or email notification to instantly auto-categorize and log.</p>
+          </div>
+          <div class="ingest-actions">
+            <button class="btn btn-primary" onclick="parseAndSave()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Auto-Parse & Log
+            </button>
+            <button class="btn btn-secondary" onclick="openModal('modal-manual-add')">+ Manual</button>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <textarea id="raw-input-text" placeholder="e.g. Paid Rs. 480.00 to Swiggy via UPI on 22-Nov-26 (Ref: 432190812345). Avl bal: Rs 14,250.00"></textarea>
+        </div>
+
+        <!-- Sample Chips for Quick Test -->
+        <div class="sample-chips">
+          <span class="chips-label">Quick Test Samples:</span>
+          <button class="chip" onclick="loadSample('swiggy')">🍕 Swiggy UPI ₹340</button>
+          <button class="chip" onclick="loadSample('chai')">☕ Chai Point UPI ₹40</button>
+          <button class="chip" onclick="loadSample('salary')">💼 Salary NEFT ₹85,000</button>
+          <button class="chip" onclick="loadSample('amazon')">🛍️ Amazon ICICI ₹1,499</button>
+          <button class="chip" onclick="loadSample('zara')">👗 Zara Card ₹2,450</button>
+          <button class="chip" onclick="loadSample('spotify')">🎵 Spotify Auto-Debit ₹119</button>
+        </div>
+
+        <!-- Live Parsed Result Feedback -->
+        <div id="parse-result-banner" class="parse-result-banner hidden">
+          <div class="result-details" id="result-details-content">
+            <!-- Dynamically injected -->
+          </div>
+        </div>
+      </section>
+
+      <!-- METRICS & TELEMETRY -->
+      <section class="metrics-grid">
+        <div class="metric-card expense">
+          <div class="metric-header">
+            <span class="metric-label">MONTHLY EXPENSES</span>
+            <span class="metric-badge red">OUTFLOW</span>
+          </div>
+          <div class="metric-value" id="val-monthly-expense">₹0.00</div>
+          <div class="metric-footer">
+            <span id="val-today-expense">Today: ₹0.00</span>
+          </div>
+        </div>
+
+        <div class="metric-card income">
+          <div class="metric-header">
+            <span class="metric-label">MONTHLY INFLOW</span>
+            <span class="metric-badge green">INCOME</span>
+          </div>
+          <div class="metric-value" id="val-monthly-income">₹0.00</div>
+          <div class="metric-footer">
+            <span id="val-net-savings">Net Savings: ₹0.00</span>
+          </div>
+        </div>
+
+        <div class="metric-card upi">
+          <div class="metric-header">
+            <span class="metric-label">UPI SPEND</span>
+            <span class="metric-badge cyan">DIGITAL</span>
+          </div>
+          <div class="metric-value" id="val-monthly-upi">₹0.00</div>
+          <div class="metric-footer">
+            <span id="val-tx-count">0 Recorded Txns</span>
+          </div>
+        </div>
+
+        <div class="metric-card budget">
+          <div class="metric-header">
+            <span class="metric-label">BUDGET TRACKER</span>
+            <span class="metric-badge amber" id="val-budget-pct">0% Used</span>
+          </div>
+          <div class="metric-value" id="val-budget-remaining">₹0.00</div>
+          <div class="budget-bar-bg">
+            <div class="budget-bar-fill" id="budget-bar-fill" style="width: 0%;"></div>
+          </div>
+          <div class="metric-footer">
+            <span id="val-budget-total">Limit: ₹35,000.00</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS: CATEGORY BREAKDOWN & DAILY SPEND -->
+      <section class="analytics-row">
+        <div class="analytics-card flex-2">
+          <div class="section-heading">
+            <h4>SPENDING BY CATEGORY</h4>
+            <span class="heading-sub">CURRENT MONTH</span>
+          </div>
+          <div id="category-bars-container" class="category-bars-container">
+            <!-- Dynamic categories injected -->
+          </div>
+        </div>
+
+        <div class="analytics-card flex-1">
+          <div class="section-heading">
+            <h4>INFLOW VS OUTFLOW</h4>
+            <span class="heading-sub">HEALTH RATIO</span>
+          </div>
+          <div class="ratio-container">
+            <div class="ratio-circle">
+              <span class="ratio-num" id="val-savings-rate">0%</span>
+              <span class="ratio-desc">SAVED</span>
+            </div>
+            <div class="ratio-stats">
+              <div class="stat-line">
+                <span class="stat-dot dot-green"></span>
+                <span class="stat-lbl">Inflow:</span>
+                <span class="stat-val green-text" id="ratio-income">₹0</span>
+              </div>
+              <div class="stat-line">
+                <span class="stat-dot dot-red"></span>
+                <span class="stat-lbl">Outflow:</span>
+                <span class="stat-val red-text" id="ratio-expense">₹0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRANSACTIONS LEDGER -->
+      <section class="ledger-card">
+        <div class="ledger-header">
+          <div class="ledger-title-area">
+            <h4>TRANSACTION LEDGER</h4>
+            <span class="ledger-count" id="ledger-count-badge">0 Transactions</span>
+          </div>
+
+          <div class="ledger-controls">
+            <input type="text" id="filter-search" class="search-input" placeholder="Search merchant, ref, note..." oninput="debounceFetchTransactions()">
+
+            <select id="filter-type" class="filter-select" onchange="fetchTransactions()">
+              <option value="All">All Types</option>
+              <option value="EXPENSE">Expenses Only</option>
+              <option value="INCOME">Income Only</option>
+            </select>
+
+            <select id="filter-category" class="filter-select" onchange="fetchTransactions()">
+              <option value="All">All Categories</option>
+              <option value="Food & Dining">Food & Dining</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Travel & Fuel">Travel & Fuel</option>
+              <option value="Bills & Utilities">Bills & Utilities</option>
+              <option value="Subscriptions & Tech">Subscriptions & Tech</option>
+              <option value="Health & Fitness">Health & Fitness</option>
+              <option value="Salary & Income">Salary & Income</option>
+              <option value="Transfers">Transfers</option>
+              <option value="General">General</option>
+            </select>
+
+            <button class="btn btn-secondary btn-sm" onclick="seedSampleData()" title="Populate realistic test bank transactions">Seed Samples</button>
+            <button class="btn btn-secondary btn-sm" onclick="refreshAll()" title="Refresh Ledger">⟳</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>MERCHANT / COUNTERPARTY</th>
+                <th>CATEGORY</th>
+                <th>MODE</th>
+                <th>SOURCE</th>
+                <th>AMOUNT</th>
+                <th>REF / ACCOUNT</th>
+                <th>ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div id="empty-state" class="empty-state hidden">
+            <p>No transactions found. Paste an SMS above or click "Seed Samples" to populate.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- INGESTION FEEDS & SETUP MODAL -->
+    <div id="modal-setup" class="modal-overlay hidden">
+      <div class="modal-card wide">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span class="badge-tag">AUTONOMOUS SYNC</span>
+            <h3>Ingestion Sources & Automated Feed Setup</h3>
+          </div>
+          <button class="btn-close" onclick="closeModal('modal-setup')">✕</button>
+        </div>
+
+        <div class="modal-tabs">
+          <button class="tab-btn active" id="tab-sms-btn" onclick="switchTab('tab-sms')">📱 macOS Messages (SMS)</button>
+          <button class="tab-btn" id="tab-email-btn" onclick="switchTab('tab-email')">✉️ Bank Email (IMAP)</button>
+          <button class="tab-btn" id="tab-webhook-btn" onclick="switchTab('tab-webhook')">⚡ iPhone / Mac Shortcut</button>
+          <button class="tab-btn" id="tab-logs-btn" onclick="switchTab('tab-logs')">📜 Feed Logs</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- TAB: SMS -->
+          <div id="tab-sms" class="tab-pane active">
+            <div class="info-box">
+              <h4>Direct SMS & iMessage Ingestion from Apple Messages</h4>
+              <p>When your iPhone forwards bank/UPI SMS to your Mac (Settings &gt; Messages &gt; Text Message Forwarding), AutoLedger can automatically read incoming bank texts from the local database.</p>
+            </div>
+
+            <div class="setup-status-card" id="sms-fda-status-box">
+              <!-- Dynamic status injected -->
+            </div>
+
+            <div class="instructions-card">
+              <h5>How to Enable Full Disk Access on macOS:</h5>
+              <ol>
+                <li>Open <strong>System Settings</strong> on your Mac.</li>
+                <li>Go to <strong>Privacy &amp; Security &gt; Full Disk Access</strong>.</li>
+                <li>Toggle <strong>ON</strong> for your Terminal application (or Python / VS Code).</li>
+                <li>Click the <strong>"Scan SMS Now"</strong> button below to test immediate import.</li>
+              </ol>
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn btn-primary" onclick="syncSMS()">Scan SMS Now</button>
+            </div>
+          </div>
+
+          <!-- TAB: EMAIL -->
+          <div id="tab-email" class="tab-pane">
+            <div class="info-box">
+              <h4>Automated Bank Email Transaction Ingestion</h4>
+              <p>Connect your email (e.g. Gmail) via secure IMAP to scan incoming transaction receipts from HDFC, SBI, ICICI, Axis, Paytm, or CRED.</p>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label>IMAP Server Host</label>
+                <input type="text" id="cfg-email-host" value="imap.gmail.com">
+              </div>
+              <div class="form-group">
+                <label>IMAP Port</label>
+                <input type="text" id="cfg-email-port" value="993">
+              </div>
+              <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="cfg-email-user" placeholder="your.name@gmail.com">
+              </div>
+              <div class="form-group">
+                <label>Google App Password</label>
+                <input type="password" id="cfg-email-pass" placeholder="16-character App Password">
+                <span class="field-hint">Generate an App Password at <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent-cyan);">myaccount.google.com/apppasswords</a></span>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn btn-secondary" onclick="saveEmailSettings()">Save Credentials</button>
+              <button class="btn btn-primary" onclick="syncEmail()">Scan Email Now</button>
+            </div>
+          </div>
+
+          <!-- TAB: WEBHOOK / SHORTCUTS -->
+          <div id="tab-webhook" class="tab-pane">
+            <div class="info-box">
+              <h4>Real-Time iPhone &amp; Mac Shortcut Trigger (Zero Setup)</h4>
+              <p>You can set up a simple Apple Shortcut on your iPhone or Mac that immediately pushes ANY incoming bank notification or SMS straight to AutoLedger in real-time!</p>
+            </div>
+
+            <div class="code-box-wrapper">
+              <span class="code-label">Local Webhook Endpoint:</span>
+              <pre><code>POST http://localhost:5050/api/ingest/webhook
+Content-Type: application/json
+
+{
+  "text": "Paid Rs. 340 to Swiggy via UPI on 22-Nov-26 (Ref: 432190812345)",
+  "source": "iPhone Shortcut"
+}</code></pre>
+            </div>
+
+            <div class="instructions-card">
+              <h5>How to set up on iPhone (Automations):</h5>
+              <ol>
+                <li>Open the <strong>Shortcuts</strong> app on iOS and tap <strong>Automation &gt; New Automation</strong>.</li>
+                <li>Choose <strong>Message</strong> &gt; "Message Contains" e.g. <code>debited</code> or <code>Rs</code> &gt; Run Immediately.</li>
+                <li>Add action: <strong>Get Contents of URL</strong> &gt; <code>http://&lt;your-mac-ip&gt;:5050/api/ingest/webhook</code> &gt; POST &gt; Pass message text.</li>
+                <li>Every single UPI transaction or ATM withdrawal automatically records itself into your tracker with zero manual taps!</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- TAB: LOGS -->
+          <div id="tab-logs" class="tab-pane">
+            <div class="table-responsive">
+              <table class="ledger-table">
+                <thead>
+                  <tr>
+                    <th>TIMESTAMP</th>
+                    <th>SOURCE</th>
+                    <th>STATUS</th>
+                    <th>DETAILS</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-tbody">
+                  <!-- Injected dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANUAL ADD MODAL -->
+    <div id="modal-manual-add" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Log Manual Expense / Deposit</h3>
+          <button class="btn-close" onclick="closeModal('modal-manual-add')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" step="0.01" id="man-amount" placeholder="e.g. 250.00" required>
+            </div>
+            <div class="form-group">
+              <label>Transaction Type</label>
+              <select id="man-type">
+                <option value="EXPENSE">Expense / Debit</option>
+                <option value="INCOME">Income / Deposit</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Merchant / Payee</label>
+              <input type="text" id="man-merchant" placeholder="e.g. Blue Tokai Coffee" required>
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select id="man-category">
+                <option value="Food & Dining">Food & Dining</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Travel & Fuel">Travel & Fuel</option>
+                <option value="Bills & Utilities">Bills & Utilities</option>
+                <option value="Subscriptions & Tech">Subscriptions & Tech</option>
+                <option value="Health & Fitness">Health & Fitness</option>
+                <option value="Salary & Income">Salary & Income</option>
+                <option value="Transfers">Transfers</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Payment Mode</label>
+              <select id="man-mode">
+                <option value="UPI">UPI</option>
+                <option value="CARD">Debit / Credit Card</option>
+                <option value="NETBANKING">Net Banking / NEFT</option>
+                <option value="ATM">Cash / ATM</option>
+                <option value="AUTO_DEBIT">Auto-Debit</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Notes / Ref</label>
+              <input type="text" id="man-notes" placeholder="Optional notes or UPI Ref">
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('modal-manual-add')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitManualTransaction()">Save Transaction</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="modal-settings" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Tracker Preferences</h3>
+          <button class="btn-close" onclick="closeModal('modal-settings')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Monthly Budget Limit (₹)</label>
+              <input type="number" id="set-budget" placeholder="35000">
+            </div>
+            <div class="form-group">
+              <label>Currency Symbol</label>
+              <input type="text" id="set-currency" value="₹">
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('modal-settings')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Preferences</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
